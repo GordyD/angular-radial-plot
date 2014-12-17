@@ -445,13 +445,14 @@ ui.d3.RadialPlot.prototype._drawPoints = function(dataset, sum) {
           }
           if (that._tooltips) {
             var cx =  ui.d3.RadialPlot.toFloat(d3.select(this).attr('cx')),
-                x =  cx - 15,
+                x =  cx - 0,
                 y =  ui.d3.RadialPlot.toFloat(d3.select(this).attr('cy')),
                 tooltipText = svg
                   .append('text')
                   .attr('class', 'tooltip-text')
+                  .attr("text-anchor", "middle")
                   .attr('transform', 'translate(' + (that._plotRadius + that._padding) + ', ' + (that._plotRadius + that._padding) + ')')
-                  .attr('x', x + 2 ).attr('y', y - 4).text(d.name + ': ' + ui.d3.RadialPlot.toFloat(d.value,1) + '%').style('opacity', 0);
+                  .attr('x', x ).attr('y', y - 3).text(d.name + ': ' + ui.d3.RadialPlot.toFloat(d.value,1) + '%').style('opacity', 0);
             tooltipText.transition(200).style('opacity', 1); 
           }
           })
@@ -483,11 +484,12 @@ ui.d3.RadialPlot.prototype._addLabels = function(dataset) {
     .text(function(d,i){
       return d.name;
     })
+    .attr("text-anchor", "middle")
     .attr('class','label')
     .attr('transform', function(d,i) { 
       var transform = that._plotRadius + that._padding,
-          x = (that._innerRadius + that._plotRadius+2) * Math.sin(that.angle(i-0.2)) + transform,
-          y = (-(that._innerRadius + that._plotRadius+2) * Math.cos(that.angle(i-0.2))) + transform,
+          x = (that._innerRadius + that._plotRadius+2) * Math.sin(that.angle(i)) + transform,
+          y = (-(that._innerRadius + that._plotRadius+2) * Math.cos(that.angle(i))) + transform,
           rotation = that.angle(i) * (180/Math.PI);
       return 'translate('+x+','+y+') rotate(' + rotation + ')'; 
     });
