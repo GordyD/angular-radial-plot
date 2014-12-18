@@ -410,7 +410,7 @@ ui.d3.RadialPlot.prototype._addIncrementLabels = function() {
       .enter()
       .append('text')
       .attr('class','increment-label')
-      .attr('x', 5)
+      .attr('x', 2)
       .attr('y', function(d) { return - (that._scale(d) + (that._scale(20)/20)); })
       .text(function(d) {return d;})
       .attr('transform', 'translate(' + (this._plotRadius + this._padding) + ', ' + (this._plotRadius + this._padding) + ')');
