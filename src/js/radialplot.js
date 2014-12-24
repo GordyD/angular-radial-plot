@@ -194,7 +194,7 @@ ui.d3.RadialPlot.prototype.setFreeDraw = function(freeDraw) {
  * @param {Array|null} scenes
  * @param {Object} scope
  */
-ui.d3.RadialPlot.prototype.onDataChanged = function(dsn, compare, scenes, scope) {
+ui.d3.RadialPlot.prototype.onDataChanged = function(dsn, compare, scenes, stack, scope) {
   if (typeof dsn === 'undefined' || this._inDrag) {
     return;
   }
@@ -226,40 +226,48 @@ ui.d3.RadialPlot.prototype.onDataChanged = function(dsn, compare, scenes, scope)
     this._drawArea(this.svg, cvalues, 'compare-area');
   }
 
-  var sum = 0,
+  if (typeof stack !== 'undefined') {
+    var stacked = this._generateStackedData(stack, dsn);
+    for (var x in stacked) {
+      var cl = (x % 2 === 0) ? 'area' : 'compare-area';
+      this._drawArea(this.svg, stacked[x], cl);
+    }
+  } else {
+    var sum = 0,
       values = this._map(dataset, function(row) {
         var val = ui.d3.RadialPlot.toFloat(row.value, 1); 
         return (val > 100) ? 100 : (val <= 0) ? that._tendToZero: val;
       });
 
-  for (var x in dataset) {
-    sum += dataset[x].value;
-  }
+    for (var x in dataset) {
+      sum += dataset[x].value;
+    }
 
-  this.areaCanvas = this.svg.append('g')
-    .attr('class', 'area-g');
-  this.area = this._drawArea(this.areaCanvas, values, this._checkTotal(sum) ? 'area' : 'area-invalid');
+    this.areaCanvas = this.svg.append('g')
+      .attr('class', 'area-g');
+    this.area = this._drawArea(this.areaCanvas, values, this._checkTotal(sum) ? 'area' : 'area-invalid');
+
+    this.points = this._drawPoints(dataset, sum);
+
+    if (this._editable) {
+      console.log('is Editable');
+      var drag = this._getDragBehaviour(scope);
+      this.points.call(drag);
+    }
+
+    if (this._draws++ === 0 && this._animated) {
+      this._addSceneTransitions(scenes, this.area, this.points);
+    } else {
+      this.points.attr('r', this._pointRadius);
+      this.area.attr('d', this.line);
+    } 
+  }
 
   this._drawInnerCircle();
 
-  this.points = this._drawPoints(dataset, sum);
-
   if (this._labelled) {
     this._addLabels(dataset);
-  }
-
-  if (this._editable) {
-    console.log('is Editable');
-    var drag = this._getDragBehaviour(scope);
-    this.points.call(drag);
-  }
-
-  if (this._draws++ === 0 && this._animated) {
-    this._addSceneTransitions(scenes, this.area, this.points);
-  } else {
-    this.points.attr('r', this._pointRadius);
-    this.area.attr('d', this.line);
-  }  
+  } 
 };
 
 /** 
@@ -324,9 +332,16 @@ ui.d3.RadialPlot.prototype._setAngle = function(size) {
 
 ui.d3.RadialPlot.prototype._setLine = function() {
   var that = this;
-  this.line = d3.svg.line.radial()
+  this.line = d3.svg.area.radial()
     .interpolate(this._interpolation)
-    .radius(function(d) { return (d === 0) ? that._innerRadius : that._scale(d); })
+    .innerRadius(function(d) { return (typeof d.innerValue !== 'undefined') ? that._scale(d.innerValue): 0; })
+    .outerRadius(function(d) { 
+      var xx = d;
+      if (typeof d.outerValue !== 'undefined') {
+        xx = d.outerValue;
+      }
+      return (xx === 0) ? that._innerRadius : that._scale(xx); 
+    })
     .angle(function(d, i) { return that.angle(i); });
 };
 
@@ -521,6 +536,24 @@ ui.d3.RadialPlot.prototype._convert = function(object) {
   return dataset;
 };
 
+ui.d3.RadialPlot.prototype._generateStackedData = function(stack, dsn) {
+  var output = [], previousId = null;
+  stack.push(dsn);
+  for(var x in stack) {
+    output[x] = [];
+    for (var y in stack[x]) { 
+      output[x][stack[x][y].id] = {
+        innerValue: (previousId) ? output[previousId][stack[x][y].id].outerValue : 0,
+        outerValue: (previousId) ? output[previousId][stack[x][y].id].outerValue + stack[x][y].value : stack[x][y].value,
+        name: stack[x][y].id
+      }
+    }
+    previousId = x;
+  }
+
+  return output;
+}
+
 ui.d3.RadialPlot.prototype._getDragBehaviour = function(scope) {
   var that = this,
     drag = d3.behavior.drag()
@@ -626,7 +659,7 @@ ui.radialplot = function() {
 
     // Watch statement that triggers redraw of content. 
     scope.$watch('dsn', function(dsn) {
-      radialPlot.onDataChanged(dsn, scope.compare, scope.play, scope);
+      radialPlot.onDataChanged(dsn, scope.compare, scope.play, scope.stack, scope);
     }.bind(this), true);
   }
 
@@ -635,7 +668,8 @@ ui.radialplot = function() {
     scope: {
       dsn: '=',
       compare: '=',
-      play: '='
+      play: '=',
+      stack: '='
     },
     link: link
   };
