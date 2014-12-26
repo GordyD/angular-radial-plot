@@ -26,6 +26,10 @@
   stroke-width: 0.2;
 }
 
+.interactive-arc {
+  fill-opacity: 0;
+}
+
 .invalid {
   color: #FF0000;
 }

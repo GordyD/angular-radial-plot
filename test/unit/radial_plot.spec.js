@@ -23,12 +23,12 @@ describe('a new RadialPlot object', function() {
         expect(radialPlot._increment).toBe(20);
     });
 
-    it('should have a plot radius of 43', function() {
-        expect(radialPlot._plotRadius).toBe(43);
+    it('should have a plot radius of 41', function() {
+        expect(radialPlot._plotRadius).toBe(41);
     });
 
-    it('should have a inner radius of 3', function() {
-        expect(radialPlot._innerRadius).toBe(3);
+    it('should have a inner radius of 2', function() {
+        expect(radialPlot._innerRadius).toBe(2);
     });
 
     it('should have a point radius of 1', function() {
