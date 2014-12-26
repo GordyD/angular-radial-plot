@@ -42,7 +42,8 @@ Features
 - Overlay comparison plot on graph
 - Animate between different sets of values
 - Styleable
- 
-Planned Improvements
---------------------
-- Improve interactive mode on mobile
+- Works well on Mobile (moved from having to click directly on points to click in region of axis)
+
+Planned Improvements (Dec 2014)
+-------------------------------
+- Stackable plotting of data
