@@ -557,7 +557,7 @@ ui.d3.RadialPlot.prototype._addIncrementLabels = function() {
       .enter()
       .append('text')
       .attr('class','increment-label')
-      .attr('x', 5)
+      .attr('x', 2)
       .attr('y', function(d) { return - (that._scale(d) + (that._scale(20)/20)); })
       .text(function(d) {return d;})
       .attr('transform', 'translate(' + (this._plotRadius + this._padding) + ', ' + (this._plotRadius + this._padding) + ')');
@@ -634,12 +634,14 @@ ui.d3.RadialPlot.prototype._addLabels = function(dataset) {
     .text(function(d){
       return d.name;
     })
+    .attr("text-anchor", "middle")
     .attr('class','label')
     .attr('text-anchor', 'middle')
     .attr('transform', function(d,i) {
       var transform = that._plotRadius + that._padding,
           x = (that._innerRadius + that._plotRadius+2) * Math.sin(that.angle(i)) + transform,
           y = (-(that._innerRadius + that._plotRadius + 2) * Math.cos(that.angle(i))) + transform,
+          y = (-(that._innerRadius + that._plotRadius+2) * Math.cos(that.angle(i))) + transform,
           rotation = that.angle(i) * (180/Math.PI);
           if (i > min && i < max) {
             rotation += 180;
