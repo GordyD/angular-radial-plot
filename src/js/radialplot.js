@@ -622,7 +622,10 @@ ui.d3.RadialPlot.prototype._showExplanation = function(d) {
 }
 
 ui.d3.RadialPlot.prototype._addLabels = function(dataset) {
-  var that = this;
+  var that = this,
+      length = dataset.length,
+      min = length/2 - (length/4),
+      max = length/2 + (length/4);
   that.overLabelId = null;
   this.svg.selectAll('.label')
     .data(dataset)
@@ -638,7 +641,7 @@ ui.d3.RadialPlot.prototype._addLabels = function(dataset) {
           x = (that._innerRadius + that._plotRadius+2) * Math.sin(that.angle(i)) + transform,
           y = (-(that._innerRadius + that._plotRadius + 2) * Math.cos(that.angle(i))) + transform,
           rotation = that.angle(i) * (180/Math.PI);
-          if (i > 2 && i < 8) {
+          if (i > min && i < max) {
             rotation += 180;
             x = (that._innerRadius + that._plotRadius + 4) * Math.sin(that.angle(i)) + transform;
             y = (-(that._innerRadius + that._plotRadius + 4) * Math.cos(that.angle(i))) + transform;
