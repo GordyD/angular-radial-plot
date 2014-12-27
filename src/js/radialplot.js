@@ -277,8 +277,7 @@ ui.d3.RadialPlot.prototype.onDataChanged = function(dsn, compare, scenes, stack,
       sum += dataset[x].value;
     }
 
-    this.areaCanvas = this.svg.append('g')
-      .attr('class', 'area-g');
+    this.areaCanvas = this.svg.append('g').attr('class', 'area-g');
     this.area = this._drawArea(this.areaCanvas, values, this._checkTotal(sum) ? 'area' : 'area-invalid');
 
     this.points = this._drawPoints(dataset, sum);
@@ -286,9 +285,7 @@ ui.d3.RadialPlot.prototype.onDataChanged = function(dsn, compare, scenes, stack,
     this.interactiveArcs = this._drawInteractivePolygons(dataset, scope);
 
     if (this._editable) {
-      console.log('is Editable');
-      var drag = this._getDragBehaviour(scope);
-      this.points.call(drag);
+      this.interactiveArcs.call(this._getDragBehaviour(scope));
     }
 
     if (this._draws++ === 0 && this._animated) {
@@ -518,7 +515,7 @@ ui.d3.RadialPlot.prototype._drawInteractivePolygons = function(dataset, scope) {
           var val = ui.d3.RadialPlot.toFloat(row.value, 1);
           return (val > 100) ? 100 : (val <= 0) ? that._tendToZero: val;
         });
-        ext = ''; //that._checkTotal(sum) ? '' : '-invalid';
+        ext = '';
 
         d3.select(that._element).selectAll('.area,.area-invalid').remove();
         that.areaCanvas.append('path').datum(values)
@@ -769,7 +766,7 @@ ui.d3.RadialPlot.prototype._getDragBehaviour = function(scope) {
         var val = ui.d3.RadialPlot.toFloat(row.value, 1);
         return (val > 100) ? 100 : (val <= 0) ? that._tendToZero: val;
       });
-      ext = ''; //that._checkTotal(sum) ? '' : '-invalid';
+      ext = '';
 
       d3.select(that._element).selectAll('.area,.area-invalid').remove();
       that.areaCanvas.append('path').datum(values)
