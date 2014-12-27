@@ -31,6 +31,7 @@ ui.d3.RadialPlot = function(element) {
   this._freeDraw = false;
   this._tendToZero = 0.0001;
   this.compare = null;
+  this._noRedraws = 0;
 
   this._exps = [];
 };
@@ -218,12 +219,19 @@ ui.d3.RadialPlot.prototype.setFreeDraw = function(freeDraw) {
  * @param {Array|null} scenes
  * @param {Object} scope
  */
-ui.d3.RadialPlot.prototype.onDataChanged = function(dsn, compare, scenes, scope) {
+ui.d3.RadialPlot.prototype.onDataChanged = function(dsn, compare, scenes, stack, scope) {
   if (typeof dsn === 'undefined' || this._inDrag) {
     return;
   }
   var that = this,
-      dataset = this._convert(dsn);
+      dataset = this._convert(dsn),
+      initial = false;
+
+  if (this._noRedraws === 0) {
+    initial = true;
+  }
+
+  this._noRedraws++;
 
   compare = this._convert(compare);
   this.compare = compare;
@@ -244,50 +252,55 @@ ui.d3.RadialPlot.prototype.onDataChanged = function(dsn, compare, scenes, scope)
   }
   this._drawAxes(dataset);
 
-  var sum = 0,
-      values = this._map(dataset, function(row) {
-        var val = ui.d3.RadialPlot.toFloat(row.value, 1);
-        return (val > 100) ? 100 : (val <= 0) ? that._tendToZero: val;
-      });
-
-  for (var x in dataset) {
-    sum += dataset[x].value;
-  }
-
-  this.areaCanvas = this.svg.append('g')
-    .attr('class', 'area-g');
-  this.area = this._drawArea(this.areaCanvas, values, 'area'); //this._checkTotal(sum) ? 'area' : 'area-invalid');
-
-  this._drawInnerCircle();
-
-  this.points = this._drawPoints(dataset, sum);
-
   if (typeof compare !== 'undefined') {
     var cvalues = this._map(compare, function(row) {
-        var val = ui.d3.RadialPlot.toFloat(row.value, 1);
+        var val = ui.d3.RadialPlot.toFloat(row.value, 1); 
         return (val > 100) ? 100 : (val <= 0) ? that._tendToZero: val;
       });
     this._drawArea(this.svg, cvalues, 'compare-area');
   }
 
+  if (typeof stack !== 'undefined') {
+    var stacked = this._generateStackedData(stack, dsn, initial);
+    for (var x in stacked) {
+      var cl = (x % 2 === 0) ? 'area' : 'compare-area';
+      this._drawArea(this.svg, stacked[x], cl);
+    }
+  } else {
+    var sum = 0,
+      values = this._map(dataset, function(row) {
+        var val = ui.d3.RadialPlot.toFloat(row.value, 1);
+        return (val > 100) ? 100 : (val <= 0) ? that._tendToZero: val;
+      });
+
+    for (var x in dataset) {
+      sum += dataset[x].value;
+    }
+
+    this.areaCanvas = this.svg.append('g').attr('class', 'area-g');
+    this.area = this._drawArea(this.areaCanvas, values, this._checkTotal(sum) ? 'area' : 'area-invalid');
+
+    this.points = this._drawPoints(dataset, sum);
+
+    this.interactiveArcs = this._drawInteractivePolygons(dataset, scope);
+
+    if (this._editable) {
+      this.interactiveArcs.call(this._getDragBehaviour(scope));
+    }
+
+    if (this._draws++ === 0 && this._animated) {
+      this._addSceneTransitions(scenes, this.area, this.points);
+    } else {
+      this.points.attr('r', this._pointRadius);
+      this.area.attr('d', this.line);
+    } 
+  }
+
+  this._drawInnerCircle();
+
   if (this._labelled) {
     this._addLabels(dataset);
-  }
-
-  this.interactiveArcs = this._drawInteractivePolygons(dataset, scope);
-
-  if (this._editable) {
-    var drag = this._getDragBehaviour(scope);
-    this.interactiveArcs.call(drag);
-  }
-
-
-  if (this._draws++ === 0 && this._animated) {
-    this._addSceneTransitions(scenes, this.area, this.points);
-  } else {
-    this.points.attr('r', this._pointRadius);
-    this.area.attr('d', this.line);
-  }
+  } 
 };
 
 /** 
@@ -356,9 +369,16 @@ ui.d3.RadialPlot.prototype._setAngle = function(size) {
 
 ui.d3.RadialPlot.prototype._setLine = function() {
   var that = this;
-  this.line = d3.svg.line.radial()
+  this.line = d3.svg.area.radial()
     .interpolate(this._interpolation)
-    .radius(function(d) { return (d === 0) ? that._innerRadius : that._scale(d); })
+    .innerRadius(function(d) { return (typeof d.innerValue !== 'undefined') ? that._scale(d.innerValue): 0; })
+    .outerRadius(function(d) { 
+      var xx = d;
+      if (typeof d.outerValue !== 'undefined') {
+        xx = d.outerValue;
+      }
+      return (xx === 0) ? that._innerRadius : that._scale(xx); 
+    })
     .angle(function(d, i) { return that.angle(i); });
 };
 
@@ -495,7 +515,7 @@ ui.d3.RadialPlot.prototype._drawInteractivePolygons = function(dataset, scope) {
           var val = ui.d3.RadialPlot.toFloat(row.value, 1);
           return (val > 100) ? 100 : (val <= 0) ? that._tendToZero: val;
         });
-        ext = ''; //that._checkTotal(sum) ? '' : '-invalid';
+        ext = '';
 
         d3.select(that._element).selectAll('.area,.area-invalid').remove();
         that.areaCanvas.append('path').datum(values)
@@ -697,6 +717,28 @@ ui.d3.RadialPlot.prototype._convert = function(object) {
   return dataset;
 };
 
+ui.d3.RadialPlot.prototype._generateStackedData = function(stack, dsn, initial) {
+  initial = (typeof initial !== 'undefined') ? false : true;
+  var output = [], previousId = null;
+  if (!initial)  {
+    stack.pop();
+  }
+  stack.push(dsn);
+  for(var x in stack) {
+    output[x] = [];
+    for (var y in stack[x]) { 
+      output[x][stack[x][y].id] = {
+        innerValue: (previousId) ? output[previousId][stack[x][y].id].outerValue : 0,
+        outerValue: (previousId) ? output[previousId][stack[x][y].id].outerValue + stack[x][y].value : stack[x][y].value,
+        name: stack[x][y].id
+      }
+    }
+    previousId = x;
+  }
+
+  return output;
+}
+
 ui.d3.RadialPlot.prototype._getDragBehaviour = function(scope) {
   var that = this,
     drag = d3.behavior.drag()
@@ -724,7 +766,7 @@ ui.d3.RadialPlot.prototype._getDragBehaviour = function(scope) {
         var val = ui.d3.RadialPlot.toFloat(row.value, 1);
         return (val > 100) ? 100 : (val <= 0) ? that._tendToZero: val;
       });
-      ext = ''; //that._checkTotal(sum) ? '' : '-invalid';
+      ext = '';
 
       d3.select(that._element).selectAll('.area,.area-invalid').remove();
       that.areaCanvas.append('path').datum(values)
@@ -808,12 +850,12 @@ ui.radialplot = function() {
     // Watch statement that triggers redraw of content. 
     if (typeof attrs.compare === 'undefined') {
       scope.$watch('dsn', function(dsn) {
-        radialPlot.onDataChanged(dsn, scope.compare, scope.play, scope);
+        radialPlot.onDataChanged(dsn, scope.compare, scope.play, scope.stack, scope);
       }, true);
     } else {
       scope.$watch('compare', function(compare) {
         if (typeof compare !== 'undefined') {
-          radialPlot.onDataChanged(scope.dsn, compare, scope.play, scope);
+          radialPlot.onDataChanged(scope.dsn, compare, scope.play, scope.stack, scope);
         }
       }, true);
     }
@@ -824,7 +866,8 @@ ui.radialplot = function() {
     scope: {
       dsn: '=',
       compare: '=',
-      play: '='
+      play: '=',
+      stack: '='
     },
     link: link
   };
